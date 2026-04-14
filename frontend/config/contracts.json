@@ -1,0 +1,47 @@
+{
+  "networks": {
+    "133": {
+      "name": "HashKey Chain Testnet",
+      "rpc": "https://testnet.hsk.xyz",
+      "explorer": "https://testnet-explorer.hsk.xyz",
+      "nativeToken": "HSK",
+      "contracts": {
+        "registry": "0x281519fb01F628Aa6E8c8f747489D47467f1f829",
+        "executor": "0x257D0f1A11a1f9ebf5a8B3ddc9Daa2D576CB1681",
+        "hspSettlement": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+        "kycSBT": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+        "supraPullOracle": "0x443A0f4Da5d2fdC47de3eeD45Af41d399F0E5702",
+        "aproUsdtFeed": "0xC45D520D18A465Ec23eE99A58Dc4cB96b357E744",
+        "keeper": "0x5a28F64B1d98E186c168d60D390Cb531053dC421"
+      },
+      "tokens": {
+        "WHSK": "0xB210D2120d57b758EE163cFfb43e73728c471Cf1",
+        "WETH": "0xefd4bC9afD210517803f293ABABd701CaeeCdfd0",
+        "USDT": "0xf1b50ed67a9e2cc94ad3c477779e2d4cbfff9029",
+        "WBTC": "0x6119ca49a79f5825c8b345f8d7ac36b272565b14",
+        "USDC": "0x054ed45810DbBAb8B27668922D110669c9D88D0a"
+      }
+    },
+    "177": {
+      "name": "HashKey Chain Mainnet",
+      "rpc": "https://mainnet.hsk.xyz",
+      "explorer": "https://hashkey.blockscout.com",
+      "nativeToken": "HSK",
+      "contracts": {
+        "registry": "0x5FbDB2315678afecb367f032d93F642f64180",
+        "executor": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+        "hspSettlement": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+        "kycSBT": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+        "supraPullOracle": "0x16f70cAD28dd621b0072B5A8a8c392970E87C3dD",
+        "aproUsdtFeed": "0x823d7f90f7A3498DB6595886b6B5dC95E6B0B7f3"
+      },
+      "tokens": {
+        "WHSK": "0xB210D2120d57b758EE163cFfb43e73728c471Cf1",
+        "WETH": "0xefd4bC9afD210517803f293ABABd701CaeeCdfd0",
+        "USDT": "0xf1b50ed67a9e2cc94ad3c477779e2d4cbfff9029",
+        "WBTC": "0x6119ca49a79f5825c8b345f8d7ac36b272565b14",
+        "USDC": "0x054ed45810DbBAb8B27668922D110669c9D88D0a"
+      }
+    }
+  }
+}
