@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     }
 
     const genModel = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       systemInstruction: PayFi_SYSTEM_PROMPT,
       generationConfig: {
         responseMimeType: "application/json",

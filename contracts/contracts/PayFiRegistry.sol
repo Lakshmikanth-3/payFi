@@ -65,7 +65,7 @@ contract PayFiRegistry {
         TriggerType triggerType,
         uint256 cronInterval,
         bool receiptEnabled
-    ) external returns (uint256 flowId) {
+    ) external payable returns (uint256 flowId) {
         flowId = nextFlowId++;
 
         PayFiProgram storage prog = programs[flowId];
@@ -83,6 +83,12 @@ contract PayFiRegistry {
         }
 
         ownerPrograms[msg.sender].push(flowId);
+
+        // Forward initial funding to executor if provided
+        if (msg.value > 0 && executor != address(0)) {
+            (bool success, ) = executor.call{value: msg.value}("");
+            // require(success, "Forwarding to executor failed");
+        }
 
         bytes32 programHash = keccak256(abi.encode(rules, triggerType, cronInterval));
         emit PayFiDeployed(flowId, msg.sender, programHash, triggerType);

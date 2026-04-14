@@ -6,13 +6,13 @@
       "explorer": "https://testnet-explorer.hsk.xyz",
       "nativeToken": "HSK",
       "contracts": {
-        "registry": "0x281519fb01F628Aa6E8c8f747489D47467f1f829",
-        "executor": "0x257D0f1A11a1f9ebf5a8B3ddc9Daa2D576CB1681",
+        "registry": "0x46251757A0008728C4Ac5766A5874f8bf1815484",
+        "executor": "0xB30324bF30ad6960846AAB79f88F2f4CCdF76dc2",
         "hspSettlement": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
         "kycSBT": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
         "supraPullOracle": "0x443A0f4Da5d2fdC47de3eeD45Af41d399F0E5702",
         "aproUsdtFeed": "0xC45D520D18A465Ec23eE99A58Dc4cB96b357E744",
-        "keeper": "0x5a28F64B1d98E186c168d60D390Cb531053dC421"
+        "keeper": "0xe416fcb2E368f01Dc577E96aE3605cEE78f9e63d"
       },
       "tokens": {
         "WHSK": "0xB210D2120d57b758EE163cFfb43e73728c471Cf1",

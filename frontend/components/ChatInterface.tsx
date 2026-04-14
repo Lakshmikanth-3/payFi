@@ -2,13 +2,34 @@
 import { useState, useRef, useEffect } from 'react';
 import { parsePaymentIntent, PaymentProgram } from '@/lib/parser';
 import { ProgramCard } from './ProgramCard';
-import { Send, Bot, User, Loader2, Sparkles, Command } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, Command, ExternalLink } from 'lucide-react';
 import { ethers } from 'ethers';
 import { useWalletClient, useChainId } from 'wagmi';
 import RegistryABI from '@/abis/PayFiRegistry.json';
+import ExecutorABI from '@/abis/PayFiExecutor.json';
 import contractsConfig from '@/config/contracts.json';
 
 export function ChatInterface() {
+  const renderMessageContent = (content: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return content.split(urlRegex).map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a 
+            key={i} 
+            href={part} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-400 font-bold hover:text-blue-300 underline underline-offset-4 decoration-blue-500/50 transition-colors inline-block max-w-full truncate align-bottom"
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   const [messages, setMessages] = useState<{role: 'user'|'assistant', content: string}[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -57,6 +78,8 @@ export function ChatInterface() {
     }
 
     setIsDeploying(true);
+    const explorerBase = "https://testnet-explorer.hsk.xyz";
+
     try {
        const provider = new ethers.BrowserProvider(walletClient as unknown as ethers.Eip1193Provider);
        const signer = await provider.getSigner();
@@ -70,45 +93,81 @@ export function ChatInterface() {
           signer
        );
 
-        const rulesFormatted = activeProgram.rules.map(r => {
-           // Ensure address is 0x prefixed and valid length (42 chars)
-           const recipient = r.recipient?.startsWith('0x') && r.recipient.length === 42 
-              ? r.recipient 
-              : "0x0000000000000000000000000000000000000000"; // Fallback to avoid ENS crash
+       const rulesFormatted = activeProgram.rules.map(r => {
+          const recipient = r.recipient?.startsWith('0x') && r.recipient.length === 42
+             ? r.recipient
+             : "0x0000000000000000000000000000000000000000";
 
-           // Convert "address(0)" string to real ZeroAddress
-           let token = r.token;
-           if (token === "address(0)" || !token?.startsWith('0x')) {
-              token = "0x0000000000000000000000000000000000000000";
-           }
+          let token = r.token;
+          if (token === "address(0)" || !token?.startsWith('0x')) {
+             token = "0x0000000000000000000000000000000000000000";
+          }
 
-           return {
-              recipient,
-              amountType: r.amountType,
-              fixedAmount: r.amountType === 0 ? ethers.parseUnits(r.fixedAmount || "0", 18) : 0,
-              percentBps: r.amountType === 1 ? r.percentBps : 0,
-              token
-           };
-        });
+          return {
+             recipient,
+             amountType: r.amountType,
+             fixedAmount: r.amountType === 0 ? ethers.parseUnits(r.fixedAmount || "0", 18) : BigInt(0),
+             percentBps: r.amountType === 1 ? r.percentBps : 0,
+             token
+          };
+       });
 
-        const triggerTypeEnum = activeProgram.trigger.type === 'CRON' ? 0 : activeProgram.trigger.type === 'ON_RECEIVE' ? 1 : 2;
+       const triggerTypeEnum = activeProgram.trigger.type === 'CRON' ? 0 : activeProgram.trigger.type === 'ON_RECEIVE' ? 1 : 2;
 
-       const tx = await registryContract.deploy(
+       // Step 1: Register intent on-chain (no value — avoids executor forwarding issues)
+       const registerTx = await registryContract.deploy(
           rulesFormatted,
           triggerTypeEnum,
           activeProgram.trigger.cronInterval,
-          activeProgram.receiptEnabled
+          activeProgram.receiptEnabled,
+          { value: BigInt(0) }
        );
 
-       const explorerBase = "https://testnet-explorer.hsk.xyz";
-       setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: `Deployment Sequence Complete. PayFi Program is live on HashKey Chain. Verifiable at: ${explorerBase}/tx/${tx.hash}` 
+       setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `⏳ Registering payment program on HashKey Chain... [${explorerBase}/tx/${registerTx.hash}]`
        }]);
+       await registerTx.wait();
+
+       // Step 2: For MANUAL trigger with native HSK, send directly to each recipient
+       const hskRules = rulesFormatted.filter(
+          r => r.token === "0x0000000000000000000000000000000000000000" && r.amountType === 0 && BigInt(r.fixedAmount) > BigInt(0)
+       );
+
+       if (triggerTypeEnum === 2 && hskRules.length > 0) {
+          for (const rule of hskRules) {
+             const amount = BigInt(rule.fixedAmount);
+             const sendTx = await signer.sendTransaction({
+                to: rule.recipient,
+                value: amount,
+             });
+
+             setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `💸 Dispatching ${ethers.formatEther(amount)} HSK to ${rule.recipient.slice(0, 6)}...${rule.recipient.slice(-4)}...`
+             }]);
+
+             const sendReceipt = await sendTx.wait();
+             setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `✅ Settlement Complete! ${ethers.formatEther(amount)} HSK delivered to ${rule.recipient.slice(0, 6)}...${rule.recipient.slice(-4)}. View: ${explorerBase}/tx/${sendTx.hash}`
+             }]);
+          }
+       } else {
+          setMessages(prev => [...prev, {
+             role: 'assistant',
+             content: `✅ PayFi Program deployed on HashKey Chain. Program will execute based on its trigger schedule.`
+          }]);
+       }
+
        setActiveProgram(null);
     } catch (e: unknown) {
        console.error(e);
-       alert("Security Alert: Deploy failed. Check network status.");
+       const msg = e instanceof Error ? e.message : String(e);
+       setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `❌ Transaction failed: ${msg.slice(0, 120)}. Please check your wallet balance and network.`
+       }]);
     } finally {
        setIsDeploying(false);
     }

@@ -74,8 +74,11 @@ contract PayFiExecutor {
     }
 
     /// @notice Execute a PayFi program 
-    function execute(uint256 flowId) external onlyKeeper {
+    function execute(uint256 flowId) external {
         PayFiProgram memory prog = registry.getProgram(flowId);
+        
+        // 0. Permission check
+        require(msg.sender == keeper || msg.sender == owner || msg.sender == prog.owner, "Access denied");
 
         // 1. KYC GATE CHECK 
         (bool isHuman, uint8 level) = kycSBT.isHuman(prog.owner);
