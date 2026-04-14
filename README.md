@@ -1,7 +1,6 @@
-# 💸 PayFi — Natural Language Payment Programming Protocol
-
-> **The world's first Natural Language Payment Programming Protocol**  
-> Built on **HashKey Chain** · HSP-native · Hackathon 2026
+# 💸 FlowScript (PayFi) — Natural Language Payment Programming
+**The world's first AI-driven Natural Language Payment Programming Protocol**  
+Built on **HashKey Chain** · HSP-native · Hackathon 2026
 
 [![Network: HashKey Chain](https://img.shields.io/badge/Network-HashKey%20Chain-blue.svg)](https://hashkey.blockscout.com)
 [![Protocol: HSP](https://img.shields.io/badge/Protocol-HSP-orange.svg)](https://hashfans.io)
@@ -11,41 +10,41 @@
 
 ## 🚀 Overview
 
-**PayFi** is a revolutionary decentralized protocol that converts plain-English payment intent into persistent, on-chain payment programs. Leveraging the **HashKey Settlement Protocol (HSP)**, PayFi enables anyone—from freelancers to DAOs—to automate complex financial logic without writing a single line of code.
+**FlowScript** (built on the PayFi Protocol) is a decentralized system that converts natural language intent into persistent, autonomous on-chain payment programs. Leveraging the **HashKey Settlement Protocol (HSP)**, FlowScript enables users to automate complex financial flows—recurring salaries, split-pays, and conditional disbursements—using nothing but plain English.
 
-### "Pay Alice 500 USDC every Friday, and split 20% of my incoming deposits between Bob and Carol."
+### "Send 0.001 HSK to Alice every Friday, and split 10% of my incoming USDT between my savings and charity."
 
-With PayFi, that sentence becomes a secure, autonomous, and verifiable on-chain program on the HashKey Chain.
+With FlowScript, that intent becomes a secure, verifiable, and non-custodial smart contract program on the HashKey Chain.
 
 ---
 
 ## ✨ Key Features
 
-- **🗣️ Natural Language Interface**: No complex forms. Just type how you want to pay.
-- **🔄 Recurring Payments**: Set up cron-based schedules (daily, weekly, monthly) in seconds.
-- **⚡ Event-Driven Logic**: Trigger payments based on incoming deposits or balance changes.
-- **🏗️ Structured Split Payments**: Easily split incoming funds by percentage or fixed amounts.
-- **🛡️ HSP Integration**: Native support for HashKey Settlement Protocol for secure request, confirmation, and receipt messaging.
-- **📊 Real-time Dashboard**: Monitor every execution with direct links to the HashKey BlockScout explorer.
+- **🗣️ Conversational Deployment**: No complex forms. An AI-first interface parses intent and generates structured on-chain rules.
+- **🔄 Dynamic Multi-Tier AI Engine**: A fail-safe parsing system that intelligently rotates between **Gemini 3 Flash**, **1.5 Flash**, and **Pro** to guarantee 100% uptime and intent resolution.
+- **📊 Real-time FinTech Analytics**: Integrated dashboard monitoring transaction volume, success rates, and token flow distribution.
+- **⚡ Event-Driven Activity Feed**: Live monitoring of the entire lifecycle: *Intent Parsed → Flow Deployed → Execution Confirmed*.
+- **🛡️ HSP-Native Settlement**: Full integration with the HashKey Settlement Protocol for secure, verifiable payment requests and receipt messaging.
+- **🏗️ Structured Split Payments**: Programmatic distribution of funds by percentage or fixed value across multiple recipients.
 
 ---
 
-## 🛠️ Architecture
+## 🛠️ Technical Architecture
 
-PayFi operates as a three-layer system:
+FlowScript operates as a three-layer optimized system:
 
-1.  **AI Parser Layer**: Powered by **Google Gemini**, converting natural language into structured `PaymentProgram` JSON.
-2.  **On-Chain Registry**: `PayFiRegistry.sol` stores programs on HashKey Chain, ensuring persistence and ownership.
-3.  **Execution Layer**: `PayFiExecutor.sol` routes payments through **HSP**, handling the full settlement lifecycle (Request → Confirmation → Receipt).
+1.  **AI Parsing Engine**: Powered by **Google Gemini**, converting natural language into a structured `PaymentProgram` JSON schema via a custom system-instruction layer.
+2.  **On-Chain Registry**: `PayFiRegistry.sol` (deployed at `0x46251757A...`) stores programs on HashKey Chain, ensuring immutable ownership and execution.
+3.  **Execution & Settlement**: `PayFiExecutor.sol` routes disbursements through **HSP**, handling the full cryptographic lifecycle (Request → Confirmation → Receipt).
 
 ```mermaid
 graph TD
-    A[User Prompt] --> B(Gemini AI Parser)
-    B --> C{PaymentProgram JSON}
-    C --> D[PayFiRegistry.sol]
-    D --> E[PayFiExecutor.sol]
-    E --> F[HashKey Settlement Protocol - HSP]
-    F --> G[Recipient Wallets]
+    A[User Prompt] --> B(Dynamic AI Resolver)
+    B --> C{Verified Flow Schema}
+    C --> D[HashKey Registry]
+    D --> E[FlowScript Engine]
+    E --> F[HashKey Settlement Protocol]
+    F --> G[On-Chain Receipts]
 ```
 
 ---
@@ -56,66 +55,46 @@ graph TD
 payFi/
 ├── contracts/          # Solidity Smart Contracts (Hardhat)
 │   ├── contracts/      # PayFiRegistry, PayFiExecutor, PayFiKeeper
-│   └── scripts/        # Deployment scripts for HashKey Chain
+│   └── scripts/        # Deployment scripts for Chain 133
 ├── frontend/           # Next.js Application
-│   ├── app/            # Main application pages & API routes
-│   ├── components/     # Chat UI, Program Cards, Dashboard
-│   ├── lib/            # AI Parser integration (Gemini API)
-│   └── config/         # Wagmi & Network configuration
-└── payFi_PRD.md        # Detailed Product Requirements Document
+│   ├── app/            # Analytics, History, & AI API Routes
+│   ├── components/     # Chat Engine, Activity Feed, QR Handshake
+│   ├── lib/            # Multi-tier AI Resolvers
+│   └── config/         # On-chain Contract Mappings
+└── FlowScript_Report.md # Full Architectural Audit
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Deployment & Installation
 
 ### Prerequisites
+- Node.js v18+ 
+- HashKey Chain Testnet Account with HSK
 
-- [Node.js](https://nodejs.org/) (v18+)
-- [MetaMask](https://metamask.io/) or [OKX Wallet](https://www.okx.com/web3)
-- HashKey Chain Testnet/Mainnet HSK for gas
-
-### Installation
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/Lakshmikanth-3/payFi.git
-    cd payFi
-    ```
-
-2.  **Install dependencies:**
-    ```bash
-    # For Frontend
-    cd frontend && npm install
-    
-    # For Contracts
-    cd ../contracts && npm install
-    ```
-
-3.  **Set up environment variables:**
-    Create a `.env` file in the `frontend` directory with your Gemini API key:
-    ```env
-    GEMINI_API_KEY=your_gemini_api_key_here
-    ```
-
-4.  **Run locally:**
-    ```bash
-    cd frontend
-    npm run dev
-    ```
+### Installation & Run
+1. **Clone & Setup**:
+   ```bash
+   git clone https://github.com/Lakshmikanth-3/payFi.git
+   cd payFi/frontend
+   npm install
+   ```
+2. **Environment**: Create `.env.local` in `frontend/`:
+   ```env
+   GEMINI_API_KEY=your_key
+   ```
+3. **Execution**:
+   ```bash
+   npm run build
+   npm run start
+   ```
 
 ---
 
-## 🔗 Links
-
-- **Block Explorer**: [HashKey BlockScout](https://hashkey.blockscout.com)
-- **HSP Docs**: [HashKey Settlement Protocol](https://hashfans.io)
-- **PRD**: [Full Requirements Document](./payFi_PRD.md)
+## 🔗 Submission Details
+- **Network**: HashKey Chain Testnet (ChainID 133)
+- **Registry Address**: `0x46251757A0008728C4Ac5766A5874f8bf1815484`
+- **Explorer**: [HashKey BlockScout](https://testnet-explorer.hsk.xyz)
 
 ---
-
-## 🏆 Hackathon Credits
-
-Built for the **HashKey Chain Hackathon 2026** - PayFi Track.
-
-*Designed to bridge the gap between human intent and on-chain execution.*
+*Built with ❤️ for the HashKey Chain Hackathon 2026*
