@@ -1,66 +1,80 @@
-import Link from "next/link";
-import { ArrowRight, Zap, Shield, Cpu } from "lucide-react";
+'use client';
+import { useState, useEffect } from 'react';
+import { Grid, Zap, Clock, Terminal } from 'lucide-react';
+import Link from 'next/link';
 
-export default function Home() {
+interface Program {
+  id: string;
+  trigger: string;
+  status: 'ACTIVE' | 'PAUSED' | 'STOPPED';
+  rulesCount: number;
+  created: string;
+  lastRun: string;
+  totalRuns: number;
+}
+
+const STATUS_COLOR: Record<string, string> = { ACTIVE: '#a3f542', PAUSED: '#ffcc00', STOPPED: '#ff4d4d' };
+const TRIGGER_COLOR: Record<string, string> = { MANUAL: '#a3f542', CRON: '#00e5c4', ON_RECEIVE: '#3b82f6', SCHEDULED: '#3b82f6' };
+
+export default function ProgramsPage() {
+  const [programs, setPrograms] = useState<Program[]>([]);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('payfi_programs') || '[]') as any[];
+      setPrograms(stored);
+    } catch {}
+  }, []);
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6 sm:p-24 overflow-hidden relative">
-      
-      {/* Premium Background Elements */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/10 blur-[120px] rounded-full -translate-y-1/2"></div>
-      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 blur-[120px] rounded-full translate-y-1/2"></div>
-
-      <div className="z-10 w-full max-w-5xl flex flex-col items-center text-center">
-        <div className="flex items-center gap-3 mb-8 animate-float">
-           <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]">
-              <Zap size={24} className="text-blue-500 fill-blue-500" />
-           </div>
-           <span className="text-sm font-black uppercase tracking-[0.4em] text-blue-500/80">Next-Gen Protocol</span>
+    <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '6px' }}>Programs</h1>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>Monitoring your deployed FlowScript logic</p>
         </div>
-
-        <h1 className="text-7xl sm:text-9xl font-black tracking-tighter text-white mb-8 glow-text">
-          PayFi
-        </h1>
-        
-        <p className="text-xl sm:text-3xl text-gray-400 mb-12 max-w-3xl font-medium leading-tight">
-          The <span className="text-white">Natural Language</span> Payment Programming Protocol. 
-          Built for the HashKey Settlement Layer.
-        </p>
-        
-        <div className="flex flex-wrap justify-center gap-8 mb-16 px-6 py-4 rounded-3xl bg-white/[0.02] border border-white/5 backdrop-blur-md">
-           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
-             <Shield size={14} className="text-blue-500" />
-             HSP Secured
-           </div>
-           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
-             <Cpu size={14} className="text-cyan-500" />
-             AI-Powered Intent
-           </div>
-           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
-             <Zap size={14} className="text-blue-400" />
-             Instant Settlement
-           </div>
-        </div>
-
-        <Link 
-          href="/create"
-          className="premium-button group flex flex-row items-center gap-4 text-white px-12 py-5 rounded-[2rem] text-xl font-black uppercase tracking-widest shadow-2xl"
-        >
-          Initialize App
-          <ArrowRight className="group-hover:translate-x-2 transition-transform" />
-        </Link>
-
-        {/* Social Proof / Trust */}
-        <div className="mt-24 grid grid-cols-2 sm:grid-cols-4 gap-12 opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-700">
-           <div className="text-sm font-black tracking-widest uppercase">HashKey Chain</div>
-           <div className="text-sm font-black tracking-widest uppercase">HSP Layer</div>
-           <div className="text-sm font-black tracking-widest uppercase">Supra Oracle</div>
-           <div className="text-sm font-black tracking-widest uppercase">Gemini 1.5</div>
-        </div>
+        <Link href="/create" style={{
+          display: 'inline-flex', alignItems: 'center', gap: '8px',
+          background: 'linear-gradient(135deg,#a3f542,#6fcd00)', border: 'none',
+          borderRadius: '12px', padding: '10px 18px', fontWeight: 800,
+          fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase',
+          color: '#000', textDecoration: 'none',
+        }}>+ Create New</Link>
       </div>
 
-      <div className="fixed bottom-0 w-full text-center p-8 text-[10px] uppercase font-black tracking-[0.5em] text-gray-700 pointer-events-none">
-        Decentralized Autonomous Payments · HSP v1.0
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {programs.length > 0 ? programs.map(p => (
+          <div key={p.id} style={{ background: '#1a1c24', borderRadius: '16px', padding: '20px 24px', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gridTemplateColumns: 'minmax(100px,1fr) 1fr 1fr 1fr 1fr', gap: '16px', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>Program</div>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: '#fff', fontFamily: 'monospace' }}>#{p.id.slice(0,6)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>Trigger</div>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: TRIGGER_COLOR[p.trigger] || '#fff', background: `${TRIGGER_COLOR[p.trigger] || '#fff'}15`, padding: '3px 10px', borderRadius: '6px' }}>{p.trigger}</span>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>Status</div>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: STATUS_COLOR[p.status], background: `${STATUS_COLOR[p.status]}15`, padding: '3px 10px', borderRadius: '6px' }}>{p.status}</span>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>Runs</div>
+              <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{p.totalRuns || 0}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>Created</div>
+              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{p.created || '—'}</div>
+            </div>
+          </div>
+        )) : (
+          <div style={{ padding: '80px', textAlign: 'center', background: '#1a1c24', borderRadius: '24px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+            <Terminal size={40} style={{ color: 'rgba(255,255,255,0.1)', marginBottom: '16px' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>No Programs Deployed</h3>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', maxWidth: '300px', margin: '0 auto' }}>Deploy your first FlowScript program to start automating your HashKey Chain payments.</p>
+            <Link href="/create" style={{ display: 'inline-block', marginTop: '24px', color: '#a3f542', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>Get Started →</Link>
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   );
 }

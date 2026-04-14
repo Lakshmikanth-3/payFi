@@ -1,3 +1,5 @@
+remove the mock, simulator, hardcode,fallback, placeholder, 
+
 # PayFi — Product Requirements Document
 
 > **The world's first Natural Language Payment Programming Protocol**

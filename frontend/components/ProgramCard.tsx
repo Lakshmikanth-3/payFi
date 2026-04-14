@@ -97,27 +97,6 @@ export function ProgramCard({ program, onDeploy, isDeploying }: { program: Payme
               <span className="text-[9px] font-black uppercase text-emerald-400 tracking-tighter">HSP Secured</span>
            </div>
          </div>
-         
-         <button
-            onClick={onDeploy}
-            disabled={isDeploying}
-            className="premium-button px-10 py-4 rounded-3xl font-black text-xs uppercase tracking-[0.2em] text-white disabled:opacity-30 disabled:cursor-not-allowed group/btn overflow-hidden relative"
-         >
-            <span className="relative z-10 flex items-center gap-2">
-              {isDeploying ? (
-                <>
-                  <Loader2 className="animate-spin" size={16} />
-                  Deploying Protocol...
-                </>
-              ) : (
-                <>
-                  Confirm & Deploy
-                  <Zap size={14} className="fill-white group-hover/btn:scale-125 transition-transform" />
-                </>
-              )}
-            </span>
-            <div className="absolute inset-0 bg-white/10 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"></div>
-         </button>
       </div>
     </div>
   );

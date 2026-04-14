@@ -1,285 +1,564 @@
-"use client";
+'use client';
 import { useState, useRef, useEffect } from 'react';
 import { parsePaymentIntent, PaymentProgram } from '@/lib/parser';
 import { ProgramCard } from './ProgramCard';
-import { Send, Bot, User, Loader2, Sparkles, Command, ExternalLink } from 'lucide-react';
+import { DualMode } from './DualMode';
+import { ApprovalModal } from './ApprovalModal';
+import { QRModal } from './QRModal';
+import { WalletButton } from './WalletButton';
+import { Send, Bot, User, Loader2, Sparkles, Command, QrCode, Zap, Split, Calendar, RefreshCw, Mic, MicOff } from 'lucide-react';
 import { ethers } from 'ethers';
 import { useWalletClient, useChainId } from 'wagmi';
 import RegistryABI from '@/abis/PayFiRegistry.json';
 import ExecutorABI from '@/abis/PayFiExecutor.json';
 import contractsConfig from '@/config/contracts.json';
 
-export function ChatInterface() {
-  const renderMessageContent = (content: string) => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    return content.split(urlRegex).map((part, i) => {
+const QUICK_TEMPLATES = [
+  { icon: <Send size={16} />, label: 'Send Once', desc: 'Manual tx right now', prompt: 'Send 0.0001 HSK to 0xc1654cbcc9a3cbb21e62f2609f2a5fa02da565fd', color: '#a3f542' },
+  { icon: <Split size={16} />, label: 'Split Pay', desc: 'Split among multiple', prompt: 'Split 1 USDC equally between 3 friends', color: '#00e5c4' },
+  { icon: <Calendar size={16} />, label: 'Schedule', desc: 'Future date or time', prompt: 'Send 5 USDC to alice.hsk on April 30th', color: '#3b82f6' },
+  { icon: <RefreshCw size={16} />, label: 'Recurring', desc: 'Every week or month', prompt: 'Pay 10 USDC to bob.hsk every Monday', color: '#ffcc00' },
+];
+
+const EXPLORERBASE = 'https://testnet-explorer.hsk.xyz';
+const REGISTRY_ADDR = (contractsConfig as any).networks['133']?.contracts?.registry;
+if (!REGISTRY_ADDR) console.warn("Registry address missing in config!");
+
+function renderContent(content: string): React.ReactNode {
+  // Regex to match [text](url) markdown links
+  const mdLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g;
+  
+  // First, let's substitute markdown links
+  const parts: (string | React.ReactNode)[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = mdLinkRegex.exec(content)) !== null) {
+    // Push text before the match
+    if (match.index > lastIndex) {
+      parts.push(content.substring(lastIndex, match.index));
+    }
+    
+    // Push the interactive link
+    parts.push(
+      <a 
+        key={`link-${match.index}`} 
+        href={match[2]} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        style={{ color: '#a3f542', fontWeight: 800, textDecoration: 'underline', textUnderlineOffset: '3px' }}
+      >
+        {match[1]} ↗
+      </a>
+    );
+    
+    lastIndex = mdLinkRegex.lastIndex;
+  }
+  
+  // Push remaining text
+  if (lastIndex < content.length) {
+    const remaining = content.substring(lastIndex);
+    
+    // Fallback URL regex for plain links not in markdown
+    const urlRegex = /(https?:\/\/[^\s\)]+)/g;
+    const subParts = remaining.split(urlRegex);
+    
+    subParts.forEach((part, i) => {
       if (part.match(urlRegex)) {
-        return (
+        parts.push(
           <a 
-            key={i} 
+            key={`plain-${i}`} 
             href={part} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-blue-400 font-bold hover:text-blue-300 underline underline-offset-4 decoration-blue-500/50 transition-colors inline-block max-w-full truncate align-bottom"
+            style={{ color: '#a3f542', fontWeight: 700, textDecoration: 'underline', wordBreak: 'break-all' }}
           >
             {part}
           </a>
         );
+      } else {
+        parts.push(part);
       }
-      return part;
     });
-  };
+  }
 
-  const [messages, setMessages] = useState<{role: 'user'|'assistant', content: string}[]>([]);
+  return <>{parts}</>;
+}
+
+export function ChatInterface() {
+  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [activeProgram, setActiveProgram] = useState<PaymentProgram | null>(null);
   const [isDeploying, setIsDeploying] = useState(false);
-  
+  const [execMode, setExecMode] = useState<'MANUAL' | 'AUTO'>('MANUAL');
+  const [showApproval, setShowApproval] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [approvalRules, setApprovalRules] = useState<{ recipient: string; amount: string; token: string }[]>([]);
+  const [pendingTxFn, setPendingTxFn] = useState<(() => Promise<void>) | null>(null);
+
+  const [isListening, setIsListening] = useState(false);
+  const [activeChip, setActiveChip] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { data: walletClient } = useWalletClient();
   const chainId = useChainId();
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping, activeProgram]);
+  const toggleListening = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice recognition not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInputValue(transcript);
+    };
+
+    if (isListening) {
+      recognition.stop();
+    } else {
+      recognition.start();
+    }
+  };
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isTyping, activeProgram]);
+
+  const addActivity = (type: string, title: string, description: string, txHash?: string) => {
+    try {
+      const current = JSON.parse(localStorage.getItem('payfi_activity') || '[]');
+      const item = { id: Math.random().toString(36).slice(2), type, title, description, timestamp: Date.now(), txHash };
+      localStorage.setItem('payfi_activity', JSON.stringify([item, ...current].slice(0, 50)));
+    } catch {}
+  };
 
   const handleSend = async () => {
-    if (!inputValue.trim()) return;
-    
-    const newMessages = [...messages, { role: 'user' as const, content: inputValue }];
-    setMessages(newMessages);
+    const text = inputValue.trim();
+    if (!text || isTyping) return;
     setInputValue('');
+    setMessages(prev => [...prev, { role: 'user', content: text }]);
     setIsTyping(true);
-
     try {
-      const historyMsg = newMessages.map(m => ({
-          role: m.role, 
-          content: m.content
-      }));
-      
-      const program = await parsePaymentIntent(inputValue, historyMsg.slice(0, -1));
-      
-      setMessages([...newMessages, { role: 'assistant', content: "Protocol analyzed. I've structured your payment logic for the HashKey Settlement Protocol. Review the secure program card below." }]);
-      setActiveProgram(program);
-
-    } catch (err) {
-      setMessages([...newMessages, { role: 'assistant', content: "Emergency: Analysis failed. Please refine your instruction." }]);
-    } finally {
+      const program = await parsePaymentIntent(text);
       setIsTyping(false);
+      if (program) {
+        setActiveProgram(program);
+        setMessages(prev => [...prev, { role: 'assistant', content: `🧠 Intent parsed. Review your payment program below and choose your execution mode.` }]);
+        addActivity('PROGRAM_DEPLOYED', 'Program Parsed', program.summary || 'Payment program ready', undefined);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: `I couldn't parse that payment. Try: "Send 0.0001 HSK to 0x..."` }]);
+      }
+    } catch {
+      setIsTyping(false);
+      setMessages(prev => [...prev, { role: 'assistant', content: `❌ Parse error. Please check your intent and try again.` }]);
+    }
+  };
+
+  const execDeploy = async () => {
+    if (!activeProgram) return;
+    setIsDeploying(true);
+    try {
+      const ethereum = (window as any).ethereum;
+      if (!ethereum) throw new Error("No crypto wallet found. Please install Metamask.");
+      
+      const provider = new ethers.BrowserProvider(ethereum);
+      const signer = await provider.getSigner();
+      const account = await signer.getAddress();
+      
+      const chainIdNum = typeof chainId === 'number' ? chainId : Number(chainId);
+      const networkKey = chainIdNum === 177 ? '177' : '133';
+      const networkConfig = (contractsConfig as any).networks[networkKey] || (contractsConfig as any).networks['133'];
+      
+      const registryAddr = networkConfig.contracts.registry;
+      const registryContract = new ethers.Contract(registryAddr, RegistryABI.abi, signer);
+
+      const rulesFormatted = activeProgram.rules.map(r => {
+        let recipient = r.recipient || '0x0000000000000000000000000000000000000000';
+        if (!recipient.startsWith('0x') || recipient.length !== 42) recipient = '0x0000000000000000000000000000000000000000';
+        
+        let token = r.token;
+        if (token === 'address(0)' || !token?.startsWith('0x')) token = '0x0000000000000000000000000000000000000000';
+        return {
+          recipient,
+          amountType: r.amountType,
+          fixedAmount: r.amountType === 0 ? ethers.parseUnits(r.fixedAmount || '0', 18) : BigInt(0),
+          percentBps: Number(r.percentBps || 0),
+          token,
+        };
+      });
+
+      console.log("Targeting Registry:", registryAddr);
+
+      // Align trigger mapping with Contract Enum: CRON=0, ON_RECEIVE=1, MANUAL=2
+      const triggerTypeEnum = activeProgram.trigger.type === 'CRON' ? 0 
+                            : activeProgram.trigger.type === 'ON_RECEIVE' ? 1 
+                            : 2; // MANUAL is 2
+
+      // Step 1: Register on-chain
+      setMessages(prev => [...prev, { role: 'assistant', content: `🛡️ Registering FlowScript on HashKey Chain...` }]);
+      
+      const registerTx = await registryContract.deploy(
+        rulesFormatted, 
+        triggerTypeEnum, 
+        BigInt(activeProgram.trigger.cronInterval || 0), 
+        !!activeProgram.receiptEnabled, 
+        { gasLimit: BigInt(250000) } 
+      );
+      
+      if (!registerTx) throw new Error("Deployment transaction failed to submit");
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: `⏳ Registering FlowScript on HashKey Chain... [Explorer](${EXPLORERBASE}/tx/${registerTx.hash})` }]);
+      await registerTx.wait();
+      
+      const newProgram = {
+        id: registerTx.hash,
+        trigger: activeProgram.trigger.type,
+        status: 'ACTIVE',
+        rulesCount: activeProgram.rules.length,
+        created: new Date().toISOString().split('T')[0],
+        lastRun: '—',
+        totalRuns: 0
+      };
+      
+      const storedProgs = JSON.parse(localStorage.getItem('payfi_programs') || '[]');
+      localStorage.setItem('payfi_programs', JSON.stringify([newProgram, ...storedProgs]));
+      
+      addActivity('PROGRAM_DEPLOYED', 'Program Deployed', `FlowScript live on-chain`, registerTx.hash);
+
+      // Step 2: For MANUAL mode, send directly if HSK rules
+      const hskRules = rulesFormatted.filter(r => r.token === '0x0000000000000000000000000000000000000000' && r.amountType === 0 && BigInt(r.fixedAmount) > BigInt(0));
+
+      if (execMode === 'MANUAL' && hskRules.length > 0) {
+        for (const rule of hskRules) {
+          const amount = BigInt(rule.fixedAmount);
+          const sendTx = await signer.sendTransaction({ 
+            to: rule.recipient, 
+            value: amount,
+            gasLimit: BigInt(21000)
+          });
+          if (!sendTx) continue;
+          
+          setMessages(prev => [...prev, { role: 'assistant', content: `💸 Moving ${ethers.formatEther(amount)} HSK to recipient...` }]);
+          const receipt = await sendTx.wait();
+          
+          setMessages(prev => [...prev, { role: 'assistant', content: `✅ Flow Success! ${ethers.formatEther(amount)} HSK delivered correctly. [View Transaction](${EXPLORERBASE}/tx/${sendTx.hash})` }]);
+          
+          const txRow = {
+            hash: sendTx.hash,
+            timestamp: new Date().toISOString(),
+            type: 'MANUAL',
+            from: account,
+            to: rule.recipient,
+            value: ethers.formatEther(amount),
+            token: 'HSK',
+            status: 'SUCCESS',
+            gasUsed: receipt?.gasUsed?.toString() || '0',
+            blockNumber: receipt?.blockNumber?.toString() || '0'
+          };
+          const storedTxs = JSON.parse(localStorage.getItem('payfi_txs') || '[]');
+          localStorage.setItem('payfi_txs', JSON.stringify([txRow, ...storedTxs]));
+
+          addActivity('PAYMENT_SENT', 'Payment Sent', `${ethers.formatEther(amount)} HSK sent`, sendTx.hash);
+          if (typeof window !== 'undefined' && window.showToast) {
+            window.showToast('SUCCESS', 'Payment Sent', `${ethers.formatEther(amount)} HSK delivered ✓`, `${EXPLORERBASE}/tx/${sendTx.hash}`);
+          }
+        }
+      } else if (execMode === 'AUTO') {
+        setMessages(prev => [...prev, { role: 'assistant', content: `🤖 Autonomous FlowScript deployed. The HSP keeper will watch for triggers and execute on-chain.` }]);
+      }
+      
+      setActiveProgram(null);
+      setExecMode('MANUAL');
+      setShowApproval(false);
+    } catch (e: any) {
+      setShowApproval(false);
+      setIsDeploying(false);
+      console.error("Exec error details:", e);
+      
+      let msg = "Transaction Failed";
+      let errorDesc = e.message || "Unknown error";
+
+      if (e.code === 'ACTION_REJECTED' || (e.message && e.message.includes('user rejected'))) {
+        msg = "Transaction Cancelled";
+        errorDesc = "You rejected the request in your wallet.";
+      } else if (e.message?.toLowerCase().includes('insufficient funds')) {
+        msg = "Insufficient HSK Balance";
+        errorDesc = "You don't have enough HSK to cover the payment + gas fee.";
+      } else if (e.message?.toLowerCase().includes('chain id mismatch') || (chainId !== 133 && chainId !== 0x85)) {
+        msg = "Wrong Network Selected";
+        errorDesc = "Please switch your wallet to HashKey Testnet (ID: 133)";
+      } else if (e.code === 'UNPREDICTABLE_GAS_LIMIT') {
+        msg = "Gas Estimation Failed";
+        errorDesc = "The transaction might fail on-chain. This usually happens if the contract logic reverts.";
+      } else if (e.reason) {
+        msg = e.reason;
+      }
+
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `❌ **${msg}**\n\n**Reason:** ${errorDesc}\n\n*Technical info: ${e.code || 'GenericError'}*` 
+      }]);
+
+      addActivity('TX_REJECTED', msg, errorDesc.slice(0, 80));
+      
+      if (typeof window !== 'undefined' && window.showToast) {
+        window.showToast('FAILED', msg, errorDesc.slice(0, 60));
+      }
+    } finally {
+      setIsDeploying(false);
     }
   };
 
   const handleDeploy = async () => {
     if (!activeProgram) return;
-    if (!walletClient) {
-       alert("Network Connection Required: Please link your OKX or Metamask wallet.");
-       return;
-    }
+    if (!walletClient) { alert('Please connect your wallet first.'); return; }
 
-    setIsDeploying(true);
-    const explorerBase = "https://testnet-explorer.hsk.xyz";
-
-    try {
-       const provider = new ethers.BrowserProvider(walletClient as unknown as ethers.Eip1193Provider);
-       const signer = await provider.getSigner();
-
-       const chainIdKey = chainId.toString() as keyof typeof contractsConfig.networks;
-       const networkConfig = contractsConfig.networks[chainIdKey] || contractsConfig.networks["133"];
-
-       const registryContract = new ethers.Contract(
-          networkConfig.contracts.registry,
-          RegistryABI.abi,
-          signer
-       );
-
-       const rulesFormatted = activeProgram.rules.map(r => {
-          const recipient = r.recipient?.startsWith('0x') && r.recipient.length === 42
-             ? r.recipient
-             : "0x0000000000000000000000000000000000000000";
-
-          let token = r.token;
-          if (token === "address(0)" || !token?.startsWith('0x')) {
-             token = "0x0000000000000000000000000000000000000000";
-          }
-
-          return {
-             recipient,
-             amountType: r.amountType,
-             fixedAmount: r.amountType === 0 ? ethers.parseUnits(r.fixedAmount || "0", 18) : BigInt(0),
-             percentBps: r.amountType === 1 ? r.percentBps : 0,
-             token
-          };
-       });
-
-       const triggerTypeEnum = activeProgram.trigger.type === 'CRON' ? 0 : activeProgram.trigger.type === 'ON_RECEIVE' ? 1 : 2;
-
-       // Step 1: Register intent on-chain (no value — avoids executor forwarding issues)
-       const registerTx = await registryContract.deploy(
-          rulesFormatted,
-          triggerTypeEnum,
-          activeProgram.trigger.cronInterval,
-          activeProgram.receiptEnabled,
-          { value: BigInt(0) }
-       );
-
-       setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: `⏳ Registering payment program on HashKey Chain... [${explorerBase}/tx/${registerTx.hash}]`
-       }]);
-       await registerTx.wait();
-
-       // Step 2: For MANUAL trigger with native HSK, send directly to each recipient
-       const hskRules = rulesFormatted.filter(
-          r => r.token === "0x0000000000000000000000000000000000000000" && r.amountType === 0 && BigInt(r.fixedAmount) > BigInt(0)
-       );
-
-       if (triggerTypeEnum === 2 && hskRules.length > 0) {
-          for (const rule of hskRules) {
-             const amount = BigInt(rule.fixedAmount);
-             const sendTx = await signer.sendTransaction({
-                to: rule.recipient,
-                value: amount,
-             });
-
-             setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `💸 Dispatching ${ethers.formatEther(amount)} HSK to ${rule.recipient.slice(0, 6)}...${rule.recipient.slice(-4)}...`
-             }]);
-
-             const sendReceipt = await sendTx.wait();
-             setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `✅ Settlement Complete! ${ethers.formatEther(amount)} HSK delivered to ${rule.recipient.slice(0, 6)}...${rule.recipient.slice(-4)}. View: ${explorerBase}/tx/${sendTx.hash}`
-             }]);
-          }
-       } else {
-          setMessages(prev => [...prev, {
-             role: 'assistant',
-             content: `✅ PayFi Program deployed on HashKey Chain. Program will execute based on its trigger schedule.`
-          }]);
-       }
-
-       setActiveProgram(null);
-    } catch (e: unknown) {
-       console.error(e);
-       const msg = e instanceof Error ? e.message : String(e);
-       setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: `❌ Transaction failed: ${msg.slice(0, 120)}. Please check your wallet balance and network.`
-       }]);
-    } finally {
-       setIsDeploying(false);
+    if (execMode === 'MANUAL') {
+      // Build approval rules for modal
+      const rules = activeProgram.rules.map(r => ({
+        recipient: r.recipient || '',
+        amount: `${r.fixedAmount || ''}`,
+        token: r.tokenSymbol || 'HSK',
+      }));
+      setApprovalRules(rules);
+      setPendingTxFn(() => execDeploy);
+      setShowApproval(true);
+      if (typeof window !== 'undefined' && window.showToast) {
+        window.showToast('APPROVAL', 'Action Required', 'Open the approval modal to confirm payment', undefined, 6000);
+      }
+    } else {
+      await execDeploy();
     }
   };
 
   return (
-    <div className="flex flex-col h-[700px] glass-card rounded-[2.5rem] bg-black/40 overflow-hidden relative border border-white/5 group">
-       
-       {/* Background Accent */}
-       <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none"></div>
-
-       {/* Header */}
-       <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-black/20 backdrop-blur-md relative z-10">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                <Bot size={20} className="text-blue-500" />
-             </div>
-             <div>
-                <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white flex items-center gap-2">
-                   PayFi AI <Sparkles size={12} className="text-cyan-500 animate-pulse" />
-                </h2>
-                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">HSP Settlement Engine</span>
-             </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0b0c0f' }}>
+      {/* Header */}
+      <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(11,12,15,0.9)', backdropFilter: 'blur(20px)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'rgba(163,245,66,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(163,245,66,0.2)' }}>
+            <Bot size={18} style={{ color: '#a3f542' }} />
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></div>
-             <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Chain Sync Active</span>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 900, color: '#fff', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              PayFi AI <Sparkles size={11} style={{ color: '#00e5c4' }} />
+            </div>
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase' }}>HSP Settlement Engine</div>
           </div>
-       </div>
-       
-       <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-premium relative z-0">
-          
-          {messages.length === 0 ? (
-             <div className="h-full flex flex-col items-center justify-center text-gray-600 gap-6 opacity-40 animate-float">
-                <div className="w-20 h-20 rounded-full border-2 border-dashed border-gray-800 flex items-center justify-center">
-                   <Command size={32} />
-                </div>
-                <div className="text-center">
-                   <p className="text-lg font-medium text-gray-400">Initialize Payment Protocol</p>
-                   <p className="text-xs uppercase tracking-[0.3em] font-bold mt-2">Speak to deploy on-chain</p>
-                </div>
-                <div className="grid grid-cols-1 gap-3 max-w-sm w-full mt-4">
-                  <div className="text-[10px] font-bold uppercase border border-white/5 bg-white/5 rounded-2xl py-3 px-4 hover:border-blue-500/30 transition-colors cursor-pointer text-center">&quot;Pay alice.hsk 100 USDC every Friday&quot;</div>
-                  <div className="text-[10px] font-bold uppercase border border-white/5 bg-white/5 rounded-2xl py-3 px-4 hover:border-blue-500/30 transition-colors cursor-pointer text-center">&quot;Split incoming USDC equally among 3 devs&quot;</div>
-                </div>
-             </div>
-          ) : (
-             <>
-                {messages.map((m, idx) => (
-                   <div key={idx} className={`flex gap-5 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-500 ${m.role === 'user' ? 'bg-blue-500/10 border-blue-500/20 text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'bg-gray-900 border-white/5 text-gray-400 shadow-xl'}`}>
-                         {m.role === 'user' ? <User size={18} /> : <Bot size={18} />}
-                      </div>
-                      <div className={`max-w-[75%] rounded-[1.8rem] p-5 text-sm leading-relaxed transition-all duration-500 ${m.role === 'user' ? 'bg-blue-500/5 text-blue-50 rounded-tr-none border border-blue-500/10' : 'bg-white/[0.03] text-gray-300 rounded-tl-none border border-white/5 backdrop-blur-sm shadow-xl'}`}>
-                         {m.content}
-                      </div>
-                   </div>
-                ))}
-                
-                {activeProgram && !isTyping && (
-                  <div className="flex gap-5 animate-in fade-in slide-in-from-bottom-5 duration-700">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 text-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]">
-                       <Bot size={18} />
-                    </div>
-                    <div className="max-w-[90%] w-full">
-                       <ProgramCard program={activeProgram} onDeploy={handleDeploy} isDeploying={isDeploying} />
-                    </div>
-                  </div>
-                )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#a3f542', boxShadow: '0 0 6px rgba(163,245,66,0.6)' }} />
+            <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Live</span>
+          </div>
+        </div>
+        <WalletButton onAddressChange={setWalletAddress} />
+      </div>
 
-                {isTyping && (
-                   <div className="flex gap-5 animate-pulse">
-                      <div className="w-10 h-10 rounded-2xl bg-gray-900 border border-white/5 flex items-center justify-center shrink-0 shadow-lg">
-                         <Bot size={18} className="text-gray-600" />
-                      </div>
-                      <div className="bg-white/[0.02] px-6 py-4 rounded-3xl rounded-tl-none border border-white/5 flex items-center gap-3 shadow-xl">
-                         <Loader2 className="animate-spin text-blue-500/50" size={16} />
-                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Parsing Intent...</span>
-                      </div>
-                   </div>
-                )}
-             </>
-          )}
-          <div ref={bottomRef} />
-       </div>
+      {/* Messages */}
+      <div className="scrollbar-premium" style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {messages.length === 0 && !activeProgram && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '40px 20px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 800, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '12px' }}>PayFi Protocol</div>
+            <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#fff', marginBottom: '8px', letterSpacing: '-0.02em' }}>Natural Language Payments</h1>
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', lineHeight: 1.6, maxWidth: '360px', margin: '0 0 8px' }}>
+              Type any payment instruction in plain English. Choose Manual or Auto mode for every program.
+            </p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', letterSpacing: '0.2em', marginTop: '4px' }}>Speak to deploy on-chain</p>
+          </div>
+        )}
 
-       {/* Input Section */}
-       <div className="p-8 bg-black/40 backdrop-blur-2xl border-t border-white/5">
-          <div className="relative flex items-center group/input">
-             <div className="absolute left-6 text-gray-500 group-focus-within/input:text-blue-500 transition-colors">
-                <Command size={18} />
-             </div>
-             <input 
-                type="text" 
-                value={inputValue}
-                onChange={e => setInputValue(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="Declare payment program..."
-                className="w-full bg-white/[0.03] border border-white/10 rounded-full py-5 pl-16 pr-20 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 shadow-inner group-hover/input:border-white/20"
-             />
-             <div className="absolute right-3 flex items-center gap-2">
-                <button 
-                   onClick={handleSend}
-                   disabled={isTyping || !inputValue.trim()}
-                   className="p-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all duration-300 disabled:opacity-20 disabled:grayscale shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:shadow-[0_0_30px_rgba(59,130,246,0.4)] hover:scale-105 active:scale-95"
+        {messages.map((m, idx) => (
+          <div key={idx} style={{ 
+            display: 'flex', gap: '12px', 
+            flexDirection: m.role === 'user' ? 'row-reverse' : 'row',
+            animation: 'fadeInUp 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards'
+          }}>
+            <div style={{
+              width: '38px', height: '38px', borderRadius: '12px', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: m.role === 'user' ? 'rgba(163,245,66,0.1)' : 'rgba(0,229,196,0.1)',
+              border: m.role === 'user' ? '1px solid rgba(163,245,66,0.2)' : '1px solid rgba(0,229,196,0.2)',
+              color: m.role === 'user' ? '#a3f542' : '#00e5c4',
+              boxShadow: m.role === 'user' ? '0 0 15px rgba(163,245,66,0.1)' : '0 0 15px rgba(0,229,196,0.1)',
+            }}>
+              {m.role === 'user' ? <User size={18} /> : <Bot size={18} />}
+            </div>
+            <div style={{
+              maxWidth: '75%', padding: '16px 20px', borderRadius: '22px',
+              borderTopLeftRadius: m.role === 'user' ? '22px' : '6px',
+              borderTopRightRadius: m.role === 'user' ? '6px' : '22px',
+              background: m.role === 'user' ? 'rgba(163,245,66,0.06)' : 'rgba(255,255,255,0.03)',
+              backdropFilter: 'blur(10px)',
+              border: m.role === 'user' ? '1px solid rgba(163,245,66,0.15)' : '1px solid rgba(255,255,255,0.08)',
+              fontSize: '14px', color: m.role === 'user' ? '#fff' : 'rgba(255,255,255,0.9)', 
+              lineHeight: 1.6,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+            }}>
+              {renderContent(m.content)}
+            </div>
+          </div>
+        ))}
+
+        {isTyping && (
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', animation: 'fadeIn 0.3s ease forwards' }}>
+            <div style={{ width: '38px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)' }}>
+              <Bot size={18} />
+            </div>
+            <div style={{ 
+              padding: '16px 20px', borderRadius: '22px', borderTopLeftRadius: '6px', 
+              background: 'rgba(163,245,66,0.03)', border: '1px solid rgba(163,245,66,0.1)', 
+              display: 'flex', alignItems: 'center', gap: '12px',
+              boxShadow: '0 0 20px rgba(163,245,66,0.05)'
+            }}>
+              <div className="typing-indicator">
+                <span></span><span></span><span></span>
+              </div>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#a3f542', letterSpacing: '0.15em', textTransform: 'uppercase' }}>AI is thinking...</span>
+            </div>
+          </div>
+        )}
+
+        {activeProgram && !isTyping && (
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(163,245,66,0.1)', border: '1px solid rgba(163,245,66,0.2)', color: '#a3f542' }}>
+              <Bot size={16} />
+            </div>
+            <div style={{ flex: 1, maxWidth: '90%' }}>
+              <ProgramCard program={activeProgram} onDeploy={handleDeploy} isDeploying={isDeploying} />
+              <DualMode mode={execMode} onChange={setExecMode} />
+              <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={handleDeploy}
+                  disabled={isDeploying}
+                  style={{
+                    flex: 1, padding: '13px 20px',
+                    background: execMode === 'MANUAL' ? 'linear-gradient(135deg,#a3f542,#6fcd00)' : 'linear-gradient(135deg,#00e5c4,#009e89)',
+                    border: 'none', borderRadius: '14px',
+                    fontSize: '12px', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: '#000', cursor: isDeploying ? 'wait' : 'pointer',
+                    opacity: isDeploying ? 0.7 : 1,
+                    transition: 'all 0.3s cubic-bezier(0.34,1.2,0.64,1)',
+                    boxShadow: execMode === 'MANUAL' ? '0 8px 24px rgba(163,245,66,0.25)' : '0 8px 24px rgba(0,229,196,0.25)',
+                  }}
                 >
-                   <Send size={18} className="fill-white" />
+                  {isDeploying ? '⏳ Deploying...' : execMode === 'MANUAL' ? '✓ Deploy with Manual Approval →' : '🤖 Deploy as Autonomous Program →'}
                 </button>
-             </div>
+                <button
+                  onClick={() => setActiveProgram(null)}
+                  disabled={isDeploying}
+                  style={{ padding: '13px 16px', background: 'rgba(255,77,77,0.08)', border: '1px solid rgba(255,77,77,0.2)', borderRadius: '14px', color: '#ff4d4d', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                >Cancel</button>
+              </div>
+            </div>
           </div>
-          <p className="mt-4 text-center text-[9px] text-gray-600 uppercase font-black tracking-[0.3em]">Encrypted Transmission · HSP Validated</p>
-       </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Quick Templates */}
+      <div style={{ padding: '0 24px 12px', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px', flexShrink: 0 }}>
+        {QUICK_TEMPLATES.map((t, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveChip(i)}
+            className={`template-chip ${activeChip === i ? 'active-chip' : ''}`}
+            style={{
+              padding: '10px 12px', borderRadius: '12px',
+              background: activeChip === i ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', 
+              border: activeChip === i ? `1px solid ${t.color}` : `1px solid rgba(255,255,255,0.06)`,
+              cursor: 'pointer', textAlign: 'left', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              display: 'flex', flexDirection: 'column', gap: '4px',
+              position: 'relative', overflow: 'hidden',
+              boxShadow: activeChip === i ? `0 0 20px ${t.color}30` : 'none'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', color: t.color }}>
+              {t.icon}
+              <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t.label}</span>
+            </div>
+            <p style={{ fontSize: '10px', color: activeChip === i ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)', margin: 0 }}>{t.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: '12px 24px 24px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '8px 8px 8px 16px' }}>
+          <Command size={16} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
+            placeholder="Send 0.0001 HSK to 0x... or describe a payment flow"
+            style={{
+              flex: 1, background: 'none', border: 'none', outline: 'none',
+              fontSize: '13px', color: '#fff',
+            }}
+          />
+          <button
+            onClick={() => setShowQR(true)}
+            title="QR Code"
+            style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', flexShrink: 0 }}
+          ><QrCode size={16} /></button>
+
+          <button
+            onClick={toggleListening}
+            title={isListening ? "Listening..." : "Voice Input"}
+            style={{ 
+              width: '36px', height: '36px', borderRadius: '10px', 
+              background: isListening ? 'rgba(163,245,66,0.1)' : 'rgba(255,255,255,0.04)', 
+              border: isListening ? '1px solid rgba(163,245,66,0.3)' : '1px solid rgba(255,255,255,0.08)', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center', 
+              cursor: 'pointer', color: isListening ? '#a3f542' : 'rgba(255,255,255,0.5)', 
+              flexShrink: 0,
+              animation: isListening ? 'pulse-glow 1.5s infinite' : 'none'
+            }}
+          >
+            {isListening ? <Mic size={16} /> : <Mic size={16} />}
+          </button>
+
+          <button
+            onClick={handleSend}
+            disabled={!inputValue.trim() || isTyping}
+            style={{
+              width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
+              background: inputValue.trim() ? 'linear-gradient(135deg,#a3f542,#6fcd00)' : 'rgba(255,255,255,0.04)',
+              border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: inputValue.trim() ? 'pointer' : 'default',
+              color: inputValue.trim() ? '#000' : 'rgba(255,255,255,0.2)',
+              transition: 'all 0.2s',
+            }}
+          ><Send size={15} /></button>
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showApproval && (
+        <ApprovalModal
+          rules={approvalRules}
+          onConfirm={execDeploy}
+          onReject={() => setShowApproval(false)}
+        />
+      )}
+
+      {showQR && (
+        <QRModal
+          walletAddress={walletAddress}
+          onClose={() => setShowQR(false)}
+        />
+      )}
     </div>
   );
 }
