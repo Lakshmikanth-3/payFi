@@ -12,8 +12,8 @@ interface CalendarPayment {
   txHash?: string;
 }
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function countdown(ms: number): string {
   if (ms < 0) return "Due";
@@ -28,20 +28,21 @@ function dateKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const STATUS_DOT: Record<string, string> = { 
-  SUCCESS: '#a3f542', 
-  COMPLETED: '#a3f542', 
-  SCHEDULED: '#ffcc00', 
-  PENDING: '#ffcc00', 
-  FAILED: '#ff4d4d' 
+const STATUS_DOT: Record<string, string> = {
+  SUCCESS: 'oklch(0.85 0.2 130)',
+  COMPLETED: 'oklch(0.85 0.2 130)',
+  SCHEDULED: 'oklch(0.85 0.18 90)',
+  PENDING: 'oklch(0.85 0.18 90)',
+  FAILED: 'oklch(0.55 0.22 25)'
 };
 
 export default function CalendarPage() {
-  const [viewDate, setViewDate] = useState(new Date()); 
+  const [viewDate, setViewDate] = useState(new Date());
   const [selected, setSelected] = useState<string | null>(null);
   const [paymentsMap, setPaymentsMap] = useState<Record<string, CalendarPayment[]>>({});
   const [upcoming, setUpcoming] = useState<any[]>([]);
   const [, tick] = useState(0);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     try {
@@ -62,10 +63,11 @@ export default function CalendarPage() {
         });
       });
       setPaymentsMap(map);
-      
+
       const programs = JSON.parse(localStorage.getItem('payfi_programs') || '[]');
       setUpcoming(programs.filter((p: any) => p.status === 'ACTIVE'));
-    } catch {}
+    } catch { }
+    setTimeout(() => setVisible(true), 100);
   }, []);
 
   useEffect(() => {
@@ -97,27 +99,33 @@ export default function CalendarPage() {
   const selectedPayments = selected ? (paymentsMap[selected] || []) : [];
 
   return (
-    <div style={{ padding: '40px', maxWidth: '1100px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '6px' }}>Payment Calendar</h1>
-        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>Real record of past and monitored upcoming FlowScript executions</p>
+    <div className="grid-pattern noise-bg" style={{ padding: '40px', maxWidth: '1100px', margin: '0 auto' }}>
+      <div className={`transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ marginBottom: '32px' }}>
+        <h1 className="text-gradient" style={{ fontSize: '32px', letterSpacing: '-0.02em', marginBottom: '8px' }}>Payment Calendar</h1>
+        <p style={{ color: 'oklch(0.55 0.03 240)', fontSize: '14px' }}>Real record of past and monitored upcoming FlowScript executions</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
-        <div style={{ background: '#1a1c24', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className={`transition-all duration-700 delay-100 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
+        <div className="card-shadow" style={{ background: 'oklch(0.12 0.02 260)', borderRadius: '20px', padding: '24px', border: '1px solid oklch(0.25 0.02 260)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <button onClick={() => setViewDate(new Date(year, month - 1, 1))} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button
+              onClick={() => setViewDate(new Date(year, month - 1, 1))}
+              style={{ background: 'oklch(0.18 0.02 260)', border: '1px solid oklch(0.25 0.02 260)', borderRadius: '10px', width: '36px', height: '36px', cursor: 'pointer', color: 'oklch(0.96 0.005 240)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
               <ChevronLeft size={16} />
             </button>
-            <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#fff' }}>{MONTHS[month]} {year}</h2>
-            <button onClick={() => setViewDate(new Date(year, month + 1, 1))} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '8px', width: '32px', height: '32px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'oklch(0.96 0.005 240)' }}>{MONTHS[month]} {year}</h2>
+            <button
+              onClick={() => setViewDate(new Date(year, month + 1, 1))}
+              style={{ background: 'oklch(0.18 0.02 260)', border: '1px solid oklch(0.25 0.02 260)', borderRadius: '10px', width: '36px', height: '36px', cursor: 'pointer', color: 'oklch(0.96 0.005 240)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
               <ChevronRight size={16} />
             </button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', marginBottom: '8px' }}>
             {DAYS.map(d => (
-              <div key={d} style={{ textAlign: 'center', fontSize: '10px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', padding: '6px 0' }}>{d}</div>
+              <div key={d} style={{ textAlign: 'center', fontSize: '10px', fontWeight: 800, color: 'oklch(0.55 0.03 240)', letterSpacing: '0.1em', padding: '6px 0' }}>{d}</div>
             ))}
           </div>
 
@@ -134,19 +142,19 @@ export default function CalendarPage() {
                     key={di}
                     onClick={() => setSelected(isSelected ? null : key)}
                     style={{
-                      background: isSelected ? 'rgba(163,245,66,0.1)' : isToday ? 'rgba(255,255,255,0.05)' : 'transparent',
-                      border: isSelected ? '1.5px solid #a3f542' : isToday ? '1.5px solid rgba(255,255,255,0.15)' : '1.5px solid transparent',
+                      background: isSelected ? 'oklch(0.85 0.2 130 / 0.1)' : isToday ? 'oklch(0.18 0.02 260)' : 'transparent',
+                      border: isSelected ? '1.5px solid oklch(0.85 0.2 130)' : isToday ? '1.5px solid oklch(0.25 0.02 260)' : '1.5px solid transparent',
                       borderRadius: '10px', padding: '8px 4px', cursor: 'pointer',
                       minHeight: '56px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-                      transition: 'all 0.15s',
+                      transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                   >
-                    <span style={{ fontSize: '12px', fontWeight: isToday ? 800 : 500, color: isCurrentMonth ? '#fff' : 'rgba(255,255,255,0.2)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: isToday ? 800 : 500, color: isCurrentMonth ? 'oklch(0.96 0.005 240)' : 'oklch(0.25 0.02 260)' }}>
                       {day.getDate()}
                     </span>
                     <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', justifyContent: 'center' }}>
                       {payments.map((p, pi) => (
-                        <div key={pi} style={{ width: '6px', height: '6px', borderRadius: '50%', background: STATUS_DOT[p.status] || '#fff', boxShadow: `0 0 4px ${STATUS_DOT[p.status] || '#fff'}60` }} />
+                        <div key={pi} style={{ width: '6px', height: '6px', borderRadius: '50%', background: STATUS_DOT[p.status] || 'oklch(0.96 0.005 240)', boxShadow: `0 0 4px ${STATUS_DOT[p.status] || 'oklch(0.96 0.005 240)'}60` }} />
                       ))}
                     </div>
                   </button>
@@ -155,11 +163,11 @@ export default function CalendarPage() {
             </div>
           ))}
 
-          <div style={{ display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', justifyContent: 'center' }}>
-            {[{ color: '#a3f542', label: 'Success' }, { color: '#ffcc00', label: 'Pending' }, { color: '#ff4d4d', label: 'Failed' }].map(l => (
+          <div style={{ display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid oklch(0.25 0.02 260)', justifyContent: 'center' }}>
+            {[{ color: 'oklch(0.85 0.2 130)', label: 'Success' }, { color: 'oklch(0.85 0.18 90)', label: 'Pending' }, { color: 'oklch(0.55 0.22 25)', label: 'Failed' }].map(l => (
               <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: l.color }} />
-                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{l.label}</span>
+                <span style={{ fontSize: '11px', color: 'oklch(0.55 0.03 240)', fontWeight: 600 }}>{l.label}</span>
               </div>
             ))}
           </div>
@@ -167,48 +175,48 @@ export default function CalendarPage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {selected && (
-            <div style={{ background: '#1a1c24', borderRadius: '20px', padding: '20px', border: '1px solid rgba(163,245,66,0.2)' }}>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: '#a3f542', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>
+            <div className="card-shadow" style={{ background: 'oklch(0.12 0.02 260)', borderRadius: '20px', padding: '20px', border: '1px solid oklch(0.85 0.2 130 / 0.2)' }}>
+              <div style={{ fontSize: '12px', fontWeight: 800, color: 'oklch(0.85 0.2 130)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>
                 {new Date(selected).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </div>
               {selectedPayments.length > 0 ? selectedPayments.map((p, i) => (
-                <div key={i} style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '12px', padding: '12px', marginBottom: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div key={i} style={{ background: 'oklch(0.18 0.02 260 / 0.3)', borderRadius: '12px', padding: '12px', marginBottom: '8px', border: '1px solid oklch(0.25 0.02 260 / 0.5)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>FlowScript #{p.programId}</span>
-                    <span style={{ fontSize: '10px', fontWeight: 800, color: STATUS_DOT[p.status] || '#fff' }}>{p.status}</span>
+                    <span style={{ fontSize: '11px', color: 'oklch(0.55 0.03 240)' }}>FlowScript #{p.programId}</span>
+                    <span style={{ fontSize: '10px', fontWeight: 800, color: STATUS_DOT[p.status] || 'oklch(0.96 0.005 240)' }}>{p.status}</span>
                   </div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{p.amount} {p.token}</div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.recipient}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'oklch(0.96 0.005 240)' }}>{p.amount} {p.token}</div>
+                  <div style={{ fontSize: '11px', color: 'oklch(0.6 0.03 240)', fontFamily: 'var(--font-jetbrains), monospace', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.recipient}</div>
                   {p.txHash && (
-                    <a href={`https://testnet-explorer.hsk.xyz/tx/${p.txHash}`} target="_blank" rel="noopener noreferrer" style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#00e5c4', textDecoration: 'none', fontWeight: 700 }}>
+                    <a href={`https://testnet-explorer.hsk.xyz/tx/${p.txHash}`} target="_blank" rel="noopener noreferrer" style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'oklch(0.7 0.18 170)', textDecoration: 'none', fontWeight: 700 }}>
                       <ExternalLink size={11} /> View Tx
                     </a>
                   )}
                 </div>
               )) : (
-                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '20px 0' }}>No activity recorded</p>
+                <p style={{ fontSize: '12px', color: 'oklch(0.55 0.03 240)', textAlign: 'center', padding: '20px 0' }}>No activity recorded</p>
               )}
             </div>
           )}
 
-          <div style={{ background: '#1a1c24', borderRadius: '20px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: '12px', fontWeight: 800, color: '#00e5c4', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '16px' }}>
+          <div className="card-shadow" style={{ background: 'oklch(0.12 0.02 260)', borderRadius: '20px', padding: '20px', border: '1px solid oklch(0.25 0.02 260)' }}>
+            <div style={{ fontSize: '12px', fontWeight: 800, color: 'oklch(0.7 0.18 170)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '16px' }}>
               Upcoming Programs
             </div>
             {upcoming.length > 0 ? upcoming.map((u, i) => (
-              <div key={i} style={{ padding: '12px 0', borderBottom: i < upcoming.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginBottom: '4px', fontWeight: 600 }}>
+              <div key={i} style={{ padding: '12px 0', borderBottom: i < upcoming.length - 1 ? '1px solid oklch(0.25 0.02 260 / 0.5)' : 'none' }}>
+                <div style={{ fontSize: '11px', color: 'oklch(0.6 0.03 240)', marginBottom: '4px', fontWeight: 600 }}>
                   FlowScript #{u.id?.slice(0, 8)}...{u.id?.slice(-8)}
                 </div>
-                <div style={{ fontSize: '10px', color: '#a3f542', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{u.trigger}</div>
+                <div style={{ fontSize: '10px', color: 'oklch(0.85 0.2 130)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>{u.trigger}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Clock size={11} style={{ color: u.trigger === 'MANUAL' ? '#fff' : '#ffcc00' }} />
-                  <span style={{ fontSize: '11px', fontWeight: 800, color: u.trigger === 'MANUAL' ? '#fff' : '#ffcc00' }}>
+                  <Clock size={11} style={{ color: u.trigger === 'MANUAL' ? 'oklch(0.96 0.005 240)' : 'oklch(0.85 0.18 90)' }} />
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: u.trigger === 'MANUAL' ? 'oklch(0.96 0.005 240)' : 'oklch(0.85 0.18 90)' }}>
                     {u.trigger === 'MANUAL' ? 'Awaiting Action' : 'Monitoring Trigger...'}
                   </span>
                 </div>
               </div>
-            )) : <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>No active background programs</p>}
+            )) : <p style={{ fontSize: '12px', color: 'oklch(0.55 0.03 240)', textAlign: 'center' }}>No active background programs</p>}
           </div>
         </div>
       </div>

@@ -14,10 +14,10 @@ import ExecutorABI from '@/abis/PayFiExecutor.json';
 import contractsConfig from '@/config/contracts.json';
 
 const QUICK_TEMPLATES = [
-  { icon: <Send size={16} />, label: 'Send Once', desc: 'Manual tx right now', prompt: 'Send 0.0001 HSK to 0xc1654cbcc9a3cbb21e62f2609f2a5fa02da565fd', color: '#a3f542' },
-  { icon: <Split size={16} />, label: 'Split Pay', desc: 'Split among multiple', prompt: 'Split 1 USDC equally between 3 friends', color: '#00e5c4' },
-  { icon: <Calendar size={16} />, label: 'Schedule', desc: 'Future date or time', prompt: 'Send 5 USDC to alice.hsk on April 30th', color: '#3b82f6' },
-  { icon: <RefreshCw size={16} />, label: 'Recurring', desc: 'Every week or month', prompt: 'Pay 10 USDC to bob.hsk every Monday', color: '#ffcc00' },
+  { icon: <Send size={16} />, label: 'Send Once', desc: 'Manual tx right now', prompt: 'Send 0.0001 HSK to 0xc1654cbcc9a3cbb21e62f2609f2a5fa02da565fd', color: 'oklch(0.85 0.2 130)' },
+  { icon: <Split size={16} />, label: 'Split Pay', desc: 'Split among multiple', prompt: 'Split 1 USDC equally between 3 friends', color: 'oklch(0.7 0.18 170)' },
+  { icon: <Calendar size={16} />, label: 'Schedule', desc: 'Future date or time', prompt: 'Send 5 USDC to alice.hsk on April 30th', color: 'oklch(0.6 0.12 200)' },
+  { icon: <RefreshCw size={16} />, label: 'Recurring', desc: 'Every week or month', prompt: 'Pay 10 USDC to bob.hsk every Monday', color: 'oklch(0.85 0.18 90)' },
 ];
 
 const EXPLORERBASE = 'https://testnet-explorer.hsk.xyz';
@@ -27,7 +27,7 @@ if (!REGISTRY_ADDR) console.warn("Registry address missing in config!");
 function renderContent(content: string): React.ReactNode {
   // Regex to match [text](url) markdown links
   const mdLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g;
-  
+
   // First, let's substitute markdown links
   const parts: (string | React.ReactNode)[] = [];
   let lastIndex = 0;
@@ -38,40 +38,40 @@ function renderContent(content: string): React.ReactNode {
     if (match.index > lastIndex) {
       parts.push(content.substring(lastIndex, match.index));
     }
-    
+
     // Push the interactive link
     parts.push(
-      <a 
-        key={`link-${match.index}`} 
-        href={match[2]} 
-        target="_blank" 
+      <a
+        key={`link-${match.index}`}
+        href={match[2]}
+        target="_blank"
         rel="noopener noreferrer"
-        style={{ color: '#a3f542', fontWeight: 800, textDecoration: 'underline', textUnderlineOffset: '3px' }}
+        style={{ color: 'oklch(0.85 0.2 130)', fontWeight: 800, textDecoration: 'underline', textUnderlineOffset: '3px' }}
       >
         {match[1]} ↗
       </a>
     );
-    
+
     lastIndex = mdLinkRegex.lastIndex;
   }
-  
+
   // Push remaining text
   if (lastIndex < content.length) {
     const remaining = content.substring(lastIndex);
-    
+
     // Fallback URL regex for plain links not in markdown
     const urlRegex = /(https?:\/\/[^\s\)]+)/g;
     const subParts = remaining.split(urlRegex);
-    
+
     subParts.forEach((part, i) => {
       if (part.match(urlRegex)) {
         parts.push(
-          <a 
-            key={`plain-${i}`} 
-            href={part} 
-            target="_blank" 
+          <a
+            key={`plain-${i}`}
+            href={part}
+            target="_blank"
             rel="noopener noreferrer"
-            style={{ color: '#a3f542', fontWeight: 700, textDecoration: 'underline', wordBreak: 'break-all' }}
+            style={{ color: 'oklch(0.85 0.2 130)', fontWeight: 700, textDecoration: 'underline', wordBreak: 'break-all' }}
           >
             {part}
           </a>
@@ -139,7 +139,7 @@ export function ChatInterface() {
       const current = JSON.parse(localStorage.getItem('payfi_activity') || '[]');
       const item = { id: Math.random().toString(36).slice(2), type, title, description, timestamp: Date.now(), txHash };
       localStorage.setItem('payfi_activity', JSON.stringify([item, ...current].slice(0, 50)));
-    } catch {}
+    } catch { }
   };
 
   const handleSend = async () => {
@@ -170,22 +170,22 @@ export function ChatInterface() {
     try {
       const ethereum = (window as any).ethereum;
       if (!ethereum) throw new Error("No crypto wallet found. Please install Metamask.");
-      
+
       const provider = new ethers.BrowserProvider(ethereum);
       const signer = await provider.getSigner();
       const account = await signer.getAddress();
-      
+
       const chainIdNum = typeof chainId === 'number' ? chainId : Number(chainId);
       const networkKey = chainIdNum === 177 ? '177' : '133';
       const networkConfig = (contractsConfig as any).networks[networkKey] || (contractsConfig as any).networks['133'];
-      
+
       const registryAddr = networkConfig.contracts.registry;
       const registryContract = new ethers.Contract(registryAddr, RegistryABI.abi, signer);
 
       const rulesFormatted = activeProgram.rules.map(r => {
         let recipient = r.recipient || '0x0000000000000000000000000000000000000000';
         if (!recipient.startsWith('0x') || recipient.length !== 42) recipient = '0x0000000000000000000000000000000000000000';
-        
+
         let token = r.token;
         if (token === 'address(0)' || !token?.startsWith('0x')) token = '0x0000000000000000000000000000000000000000';
         return {
@@ -200,26 +200,26 @@ export function ChatInterface() {
       console.log("Targeting Registry:", registryAddr);
 
       // Align trigger mapping with Contract Enum: CRON=0, ON_RECEIVE=1, MANUAL=2
-      const triggerTypeEnum = activeProgram.trigger.type === 'CRON' ? 0 
-                            : activeProgram.trigger.type === 'ON_RECEIVE' ? 1 
-                            : 2; // MANUAL is 2
+      const triggerTypeEnum = activeProgram.trigger.type === 'CRON' ? 0
+        : activeProgram.trigger.type === 'ON_RECEIVE' ? 1
+          : 2; // MANUAL is 2
 
       // Step 1: Register on-chain
       setMessages(prev => [...prev, { role: 'assistant', content: `🛡️ Registering FlowScript on HashKey Chain...` }]);
-      
+
       const registerTx = await registryContract.deploy(
-        rulesFormatted, 
-        triggerTypeEnum, 
-        BigInt(activeProgram.trigger.cronInterval || 0), 
-        !!activeProgram.receiptEnabled, 
-        { gasLimit: BigInt(250000) } 
+        rulesFormatted,
+        triggerTypeEnum,
+        BigInt(activeProgram.trigger.cronInterval || 0),
+        !!activeProgram.receiptEnabled,
+        { gasLimit: BigInt(250000) }
       );
-      
+
       if (!registerTx) throw new Error("Deployment transaction failed to submit");
-      
+
       setMessages(prev => [...prev, { role: 'assistant', content: `⏳ Registering FlowScript on HashKey Chain... [Explorer](${EXPLORERBASE}/tx/${registerTx.hash})` }]);
       await registerTx.wait();
-      
+
       const newProgram = {
         id: registerTx.hash,
         trigger: activeProgram.trigger.type,
@@ -229,10 +229,10 @@ export function ChatInterface() {
         lastRun: '—',
         totalRuns: 0
       };
-      
+
       const storedProgs = JSON.parse(localStorage.getItem('payfi_programs') || '[]');
       localStorage.setItem('payfi_programs', JSON.stringify([newProgram, ...storedProgs]));
-      
+
       addActivity('PROGRAM_DEPLOYED', 'Program Deployed', `FlowScript live on-chain`, registerTx.hash);
 
       // Step 2: For MANUAL mode, send directly if HSK rules
@@ -241,18 +241,18 @@ export function ChatInterface() {
       if (execMode === 'MANUAL' && hskRules.length > 0) {
         for (const rule of hskRules) {
           const amount = BigInt(rule.fixedAmount);
-          const sendTx = await signer.sendTransaction({ 
-            to: rule.recipient, 
+          const sendTx = await signer.sendTransaction({
+            to: rule.recipient,
             value: amount,
             gasLimit: BigInt(21000)
           });
           if (!sendTx) continue;
-          
+
           setMessages(prev => [...prev, { role: 'assistant', content: `💸 Moving ${ethers.formatEther(amount)} HSK to recipient...` }]);
           const receipt = await sendTx.wait();
-          
+
           setMessages(prev => [...prev, { role: 'assistant', content: `✅ Flow Success! ${ethers.formatEther(amount)} HSK delivered correctly. [View Transaction](${EXPLORERBASE}/tx/${sendTx.hash})` }]);
-          
+
           const txRow = {
             hash: sendTx.hash,
             timestamp: new Date().toISOString(),
@@ -276,7 +276,7 @@ export function ChatInterface() {
       } else if (execMode === 'AUTO') {
         setMessages(prev => [...prev, { role: 'assistant', content: `🤖 Autonomous FlowScript deployed. The HSP keeper will watch for triggers and execute on-chain.` }]);
       }
-      
+
       setActiveProgram(null);
       setExecMode('MANUAL');
       setShowApproval(false);
@@ -284,7 +284,7 @@ export function ChatInterface() {
       setShowApproval(false);
       setIsDeploying(false);
       console.error("Exec error details:", e);
-      
+
       let msg = "Transaction Failed";
       let errorDesc = e.message || "Unknown error";
 
@@ -304,13 +304,13 @@ export function ChatInterface() {
         msg = e.reason;
       }
 
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `❌ **${msg}**\n\n**Reason:** ${errorDesc}\n\n*Technical info: ${e.code || 'GenericError'}*` 
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `❌ **${msg}**\n\n**Reason:** ${errorDesc}\n\n*Technical info: ${e.code || 'GenericError'}*`
       }]);
 
       addActivity('TX_REJECTED', msg, errorDesc.slice(0, 80));
-      
+
       if (typeof window !== 'undefined' && window.showToast) {
         window.showToast('FAILED', msg, errorDesc.slice(0, 60));
       }
@@ -377,8 +377,8 @@ export function ChatInterface() {
         )}
 
         {messages.map((m, idx) => (
-          <div key={idx} style={{ 
-            display: 'flex', gap: '12px', 
+          <div key={idx} style={{
+            display: 'flex', gap: '12px',
             flexDirection: m.role === 'user' ? 'row-reverse' : 'row',
             animation: 'fadeInUp 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards'
           }}>
@@ -399,7 +399,7 @@ export function ChatInterface() {
               background: m.role === 'user' ? 'rgba(163,245,66,0.06)' : 'rgba(255,255,255,0.03)',
               backdropFilter: 'blur(10px)',
               border: m.role === 'user' ? '1px solid rgba(163,245,66,0.15)' : '1px solid rgba(255,255,255,0.08)',
-              fontSize: '14px', color: m.role === 'user' ? '#fff' : 'rgba(255,255,255,0.9)', 
+              fontSize: '14px', color: m.role === 'user' ? '#fff' : 'rgba(255,255,255,0.9)',
               lineHeight: 1.6,
               boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
             }}>
@@ -413,9 +413,9 @@ export function ChatInterface() {
             <div style={{ width: '38px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)' }}>
               <Bot size={18} />
             </div>
-            <div style={{ 
-              padding: '16px 20px', borderRadius: '22px', borderTopLeftRadius: '6px', 
-              background: 'rgba(163,245,66,0.03)', border: '1px solid rgba(163,245,66,0.1)', 
+            <div style={{
+              padding: '16px 20px', borderRadius: '22px', borderTopLeftRadius: '6px',
+              background: 'rgba(163,245,66,0.03)', border: '1px solid rgba(163,245,66,0.1)',
               display: 'flex', alignItems: 'center', gap: '12px',
               boxShadow: '0 0 20px rgba(163,245,66,0.05)'
             }}>
@@ -474,7 +474,7 @@ export function ChatInterface() {
             className={`template-chip ${activeChip === i ? 'active-chip' : ''}`}
             style={{
               padding: '10px 12px', borderRadius: '12px',
-              background: activeChip === i ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', 
+              background: activeChip === i ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)',
               border: activeChip === i ? `1px solid ${t.color}` : `1px solid rgba(255,255,255,0.06)`,
               cursor: 'pointer', textAlign: 'left', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               display: 'flex', flexDirection: 'column', gap: '4px',
@@ -516,12 +516,12 @@ export function ChatInterface() {
           <button
             onClick={toggleListening}
             title={isListening ? "Listening..." : "Voice Input"}
-            style={{ 
-              width: '36px', height: '36px', borderRadius: '10px', 
-              background: isListening ? 'rgba(163,245,66,0.1)' : 'rgba(255,255,255,0.04)', 
-              border: isListening ? '1px solid rgba(163,245,66,0.3)' : '1px solid rgba(255,255,255,0.08)', 
-              display: 'flex', alignItems: 'center', justifyContent: 'center', 
-              cursor: 'pointer', color: isListening ? '#a3f542' : 'rgba(255,255,255,0.5)', 
+            style={{
+              width: '36px', height: '36px', borderRadius: '10px',
+              background: isListening ? 'rgba(163,245,66,0.1)' : 'rgba(255,255,255,0.04)',
+              border: isListening ? '1px solid rgba(163,245,66,0.3)' : '1px solid rgba(255,255,255,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: isListening ? '#a3f542' : 'rgba(255,255,255,0.5)',
               flexShrink: 0,
               animation: isListening ? 'pulse-glow 1.5s infinite' : 'none'
             }}

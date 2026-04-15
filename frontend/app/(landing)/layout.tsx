@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import "../globals.css";
 import { Inter, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 import { GeistPixelLine } from 'geist/font/pixel';
 import { Providers } from "@/components/Providers";
-import { Sidebar } from "@/components/Sidebar";
 import { ToastSystem } from "@/components/ToastSystem";
 
 const spaceGrotesk = Space_Grotesk({
@@ -25,11 +24,11 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PayFi — Natural Language Payment Protocol",
+  title: "PayFi Natural Language Payment Protocol",
   description: "The world's first Natural Language Payment Programming Protocol on HashKey Chain",
 };
 
-export default function RootLayout({
+export default function LandingLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -38,12 +37,9 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable} ${GeistPixelLine.variable} font-sans antialiased min-h-screen relative overflow-x-hidden`}>
         <Providers>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <main className="flex-1 overflow-auto">
-              {children}
-            </main>
-          </div>
+          <main className="min-h-screen">
+            {children}
+          </main>
           <ToastSystem />
         </Providers>
       </body>

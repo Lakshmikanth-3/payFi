@@ -20,20 +20,20 @@ declare global {
 }
 
 const TOAST_COLORS: Record<ToastType, { border: string; bg: string; icon: string }> = {
-  SUCCESS:  { border: '#a3f542', bg: 'rgba(163,245,66,0.08)',  icon: '#a3f542' },
-  PENDING:  { border: '#ffcc00', bg: 'rgba(255,204,0,0.08)',   icon: '#ffcc00' },
-  FAILED:   { border: '#ff4d4d', bg: 'rgba(255,77,77,0.08)',   icon: '#ff4d4d' },
-  AUTO_RUN: { border: '#00e5c4', bg: 'rgba(0,229,196,0.08)',   icon: '#00e5c4' },
-  INFO:     { border: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  icon: '#3b82f6' },
-  APPROVAL: { border: '#ffcc00', bg: 'rgba(255,204,0,0.10)',   icon: '#ffcc00' },
+  SUCCESS: { border: 'oklch(0.85 0.2 130)', bg: 'oklch(0.85 0.2 130 / 0.08)', icon: 'oklch(0.85 0.2 130)' },
+  PENDING: { border: 'oklch(0.85 0.18 90)', bg: 'oklch(0.85 0.18 90 / 0.08)', icon: 'oklch(0.85 0.18 90)' },
+  FAILED: { border: 'oklch(0.55 0.22 25)', bg: 'oklch(0.55 0.22 25 / 0.08)', icon: 'oklch(0.55 0.22 25)' },
+  AUTO_RUN: { border: 'oklch(0.7 0.18 170)', bg: 'oklch(0.7 0.18 170 / 0.08)', icon: 'oklch(0.7 0.18 170)' },
+  INFO: { border: 'oklch(0.6 0.12 200)', bg: 'oklch(0.6 0.12 200 / 0.08)', icon: 'oklch(0.6 0.12 200)' },
+  APPROVAL: { border: 'oklch(0.85 0.18 90)', bg: 'oklch(0.85 0.18 90 / 0.10)', icon: 'oklch(0.85 0.18 90)' },
 };
 
 const TOAST_ICONS: Record<ToastType, React.ReactNode> = {
-  SUCCESS:  <CheckCircle size={18} />,
-  PENDING:  <Clock size={18} />,
-  FAILED:   <AlertTriangle size={18} />,
+  SUCCESS: <CheckCircle size={18} />,
+  PENDING: <Clock size={18} />,
+  FAILED: <AlertTriangle size={18} />,
   AUTO_RUN: <Zap size={18} />,
-  INFO:     <Info size={18} />,
+  INFO: <Info size={18} />,
   APPROVAL: <Bell size={18} />,
 };
 
@@ -56,10 +56,10 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
     <div
       className={exiting ? 'toast-exit' : 'toast-enter'}
       style={{
-        background: 'rgba(10,15,26,0.95)',
+        background: 'oklch(0.08 0.015 260 / 0.95)',
         backdropFilter: 'blur(20px)',
         borderRadius: '16px',
-        border: '1px solid rgba(255,255,255,0.06)',
+        border: '1px solid oklch(0.25 0.02 260)',
         borderLeft: `3px solid ${colors.border}`,
         padding: '14px 16px',
         minWidth: '320px',
@@ -74,10 +74,10 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
           {TOAST_ICONS[toast.type]}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '12px', fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 800, color: 'oklch(0.96 0.005 240)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>
             {toast.title}
           </div>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.4 }}>
+          <div style={{ fontSize: '12px', color: 'oklch(0.6 0.03 240)', lineHeight: 1.4 }}>
             {toast.subtitle}
           </div>
           {toast.link && (
@@ -93,13 +93,13 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
         </div>
         <button
           onClick={dismiss}
-          style={{ color: 'rgba(255,255,255,0.3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', flexShrink: 0 }}
+          style={{ color: 'oklch(0.55 0.03 240)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', flexShrink: 0 }}
         >
           <X size={14} />
         </button>
       </div>
       {/* Progress bar */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: 'rgba(255,255,255,0.05)' }}>
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: 'oklch(0.18 0.02 260)' }}>
         <div
           className="drain-bar"
           style={{
